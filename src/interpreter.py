@@ -8,23 +8,28 @@ def is_list_access(typ):
     else:
         return False
 
+
 def escape_data_comma(data):
-    return data.replace(",", "%%%c%%%")
+    return data.replace(",", "%c%")
+
 
 def unescape_data_comma(data):
-    return data.replace('%%%c%%%', ",")
+    return data.replace('%c%', ",")
+
 
 def format_literal(literal):
     return escape_data_comma(literal.strip('"'))
 
 
 class Interpreter:
-    variables = dict()
     output_var_name = "$$OUTPUT$$"
+
+    def __init__(self):
+        self.variables = dict()
 
     def execute(self, script, param):
 
-        self.variables["in"] = param
+        self.variables["in"] = escape_data_comma(param)
 
         statements = script.splitlines()
         for line in statements:
@@ -39,24 +44,26 @@ class Interpreter:
             self.execute_assignment(statement)
         elif typ == "RETURN":
             self.execute_return_statement(statement)
+        elif typ == "FUNCTION_CALL":
+            self.execute_function_call(statement)
 
         return
 
     def determine_statement_type(self, statement):
-        if regex.match('^\s*\S+\s*=\s*\S+\s*$', statement):
+        if regex.match('^\s*\S+\s*=.*$', statement):
             return "ASSIGNMENT"
         elif statement.startswith("return "):
             return "RETURN"
+        elif regex.match('^.+\+.+$', statement):
+            return "ADDITION"
         elif regex.match('^\$\S+\[rand\]\s*$', statement):
             return "RAND_LIST_ACCESS"
         elif regex.match('^\$\S+\[\d+\]\s*$', statement):
             return "INDEX_LIST_ACCESS"
         elif regex.match('^\$\S+\[\$\S+\]\s*$', statement):
             return "VARIABLE_LIST_ACCESS"
-        elif regex.match('^\S+\(\S*\)\s*$', statement):
+        elif regex.match('^\S+\(.*\)\s*$', statement):
             return "FUNCTION_CALL"
-        elif regex.match('^.+\+.+$', statement):
-            return "ADDITION"
         elif statement.startswith("$"):
             return "VARIABLE_EXPANSION"
         elif regex.match('^\".*\"$', statement):
@@ -106,6 +113,15 @@ class Interpreter:
         return list_name_and_index
 
     def expand_function_params(self, function_call):
+        # if there are any literals, they need to be escaped
+        while True:
+            match = regex.search('"\S+"', function_call)
+            if match is None:
+                break
+            escaped_literal = format_literal(match.group())
+            # now replace with the escaped version
+            function_call = function_call.replace(match.group(), escaped_literal, 1)
+
         func_and_params = self.expand_params(function_call, '(', ')')
         if regex.match('^\S+\.\S+\(\S*\)\s*$', func_and_params[0]):
             object_function_call = func_and_params[0].split(".")
@@ -116,9 +132,10 @@ class Interpreter:
 
     def expand_params(self, statement, open_char, close_char):
         tokens = statement.split(open_char)
-        ref_no_dollar_sign = tokens[0]
+        token_handle_name = self.format_variable_reference(tokens[0])  # this may or may not be a variable
         inner_statement = tokens[1].strip(close_char)
-        # if there's an inner function call or literal anywhere, those must be expanded first
+
+        # if there's an inner function call anywhere, those must be expanded first
         while True:
             match = regex.search('\S+\(\S*\)', inner_statement)
             if match is None:
@@ -129,7 +146,7 @@ class Interpreter:
 
         # now all commas should be non-nested, so expand each item
         inner_tokens = inner_statement.split(',')
-        ref_and_tokens = [ref_no_dollar_sign]
+        ref_and_tokens = [token_handle_name]
         for inner_token in inner_tokens:
             inner_token = inner_token.strip()
             typ = self.determine_statement_type(inner_statement)
@@ -186,19 +203,29 @@ class Interpreter:
 
         if func == 'split':
             return self._func_split(function_and_params)
+        elif func == 'return':
+            return self._func_return(function_and_params)
         else:
             return ""
 
     def _func_split(self, params):
-        # We expect a piece of text (string) to operate on, and a separator
-        return params[1].split(params[2])
+        # We expect a piece of text (string) to operate on, and (optionally) a separator
+        if len(params) < 3:
+            separator = '\n'
+        else:
+            separator = params[2]
+        return params[1].split(separator)
+
+    def _func_return(self, value):
+        self.variables[self.output_var_name] = value[1]
 
     @staticmethod
     def format_variable_reference(statement):
         return statement.strip('$')
 
     def execute_return_statement(self, value):
-        self.variables[self.output_var_name] = value
+        value = value.strip('return').strip()
+        return self.execute_function_call("return(" + value + ')')
 
     def variable_assignment(self, variable, value):
         self.variables[variable] = value

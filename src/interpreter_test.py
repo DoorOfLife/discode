@@ -4,6 +4,36 @@ from interpreter import Interpreter
 
 class InterpreterTest(unittest.TestCase):
 
+    def test_execute(self):
+        inter = Interpreter()
+        result = inter.execute('return(hello world!)', "")
+        self.assertEqual("hello world!", result)
+        inter = Interpreter()
+        result2 = inter.execute('return  hello world!', "")
+        self.assertEqual("hello world!", result2)
+
+        inter = Interpreter()
+        result3 = inter.execute('a=hello bicycle!\nreturn($a)', "")
+        self.assertEqual("hello bicycle!", result3)
+
+        inter = Interpreter()
+        result4 = inter.execute('b=split($in)\nreturn $b[0]', "hello advanced!\nblabla")
+        self.assertEqual("hello advanced!", result4)
+
+        inter = Interpreter()
+        result5 = inter.execute('b=split($in)\nreturn $b[rand]', "hello advanced!\nblabla")
+        self.assertIsNotNone(result5)
+
+        inter = Interpreter()
+        result6 = inter.execute('b=split($in)\nc=$b[rand]+$b[rand]\nreturn $c', "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten")
+        self.assertIsNotNone(result6)
+        print(result6)
+
+        inter = Interpreter()
+        result7 = inter.execute('b=split($in)\nreturn $b[rand]+$b[rand]', "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten")
+        self.assertIsNotNone(result7)
+        print(result7)
+
     def test_expand_params(self):
         inter = Interpreter()
         inter.execute_assignment("a = snaggletooth")
@@ -40,30 +70,39 @@ class InterpreterTest(unittest.TestCase):
     def test_execute_function(self):
         inter = Interpreter()
 
-    #        result = inter.execute_function_call('split("hello.and.goodbye", ".")')
-    #        self.assertEqual('hello', result[0])
-    #        self.assertEqual('and', result[1])
-    #        self.assertEqual('goodbye', result[2])
+        result = inter.execute_function_call('split("hello.and.goodbye", ".")')
+        self.assertEqual('hello', result[0])
+        self.assertEqual('and', result[1])
+        self.assertEqual('goodbye', result[2])
 
-    #   result = inter.execute_function_call('split("hello,and,goodbye", ",")')
-    #  self.assertEqual('hello', result[0])
-    # self.assertEqual('and', result[1])
-    # self.assertEqual('goodbye', result[2])
+        result = inter.execute_function_call('split("hello,and,goodbye", ",")')
+        self.assertEqual('hello', result[0])
+        self.assertEqual('and', result[1])
+        self.assertEqual('goodbye', result[2])
+
 
     def test_execute_assignment(self):
         inter = Interpreter()
         inter.execute_assignment("a = snaggletooth")
         self.assertEqual('snaggletooth', inter.variables["a"])
+        inter.execute_assignment("a2=snaggletooth2")
+        self.assertEqual('snaggletooth2', inter.variables["a2"])
+        inter.execute_assignment("a3=snaggletooth multiple words!")
+        self.assertEqual('snaggletooth multiple words!', inter.variables["a3"])
         inter.execute_assignment('b = "hi there "')
         self.assertEqual('hi there ', inter.variables["b"])
         inter.execute_assignment('c = $b + $a + " mc\'foe!"')
         self.assertEqual("hi there snaggletooth mc'foe!", inter.variables["c"])
+
 
     def test_determine_statement_type(self):
         inter = Interpreter()
         assignment = inter.determine_statement_type("a=b")
         self.assertEqual("ASSIGNMENT", assignment)
         assignment_2 = inter.determine_statement_type("a = b ")
+        self.assertEqual("ASSIGNMENT", assignment_2)
+
+        assignment_2 = inter.determine_statement_type("a = hello world! ")
         self.assertEqual("ASSIGNMENT", assignment_2)
 
         assignment_3 = inter.determine_statement_type("a = $mylist[rand] ")
@@ -98,6 +137,9 @@ class InterpreterTest(unittest.TestCase):
         function_call = inter.determine_statement_type("rand()")
         self.assertEqual("FUNCTION_CALL", function_call)
 
+        function_call = inter.determine_statement_type("return(blabla! blabla!)")
+        self.assertEqual("FUNCTION_CALL", function_call)
+
         addition = inter.determine_statement_type("$myStr[rand] + $myOtherStr")
         self.assertEqual("ADDITION", addition)
 
@@ -116,12 +158,14 @@ class InterpreterTest(unittest.TestCase):
         literal2 = inter.determine_statement_type('"hello "')
         self.assertEqual("LITERAL", literal2)
 
+
     def test_variable_assignment(self):
         inter = Interpreter()
         inter.variable_assignment("a", "b")
         self.assertEqual(inter.variables.get("a"), "b")
         inter.variable_assignment("a", "c")
         self.assertEqual(inter.variables.get("a"), "c")
+
 
     def test_add_value_to_variable(self):
         inter = Interpreter()
@@ -137,5 +181,5 @@ class InterpreterTest(unittest.TestCase):
         self.assertIn("a", inter.variables.get("a"))
 
 
-if __name__ == '__main__':
-    unittest.main()
+    if __name__ == '__main__':
+        unittest.main()
