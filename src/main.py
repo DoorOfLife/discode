@@ -30,4 +30,4 @@ async def exec(ctx, script_id: str, input_id: str):
     await ctx.send(output)
 
 
-bot.run('NzkyMTI1ODE4NTA3MTAwMTgy.X-ZKqA.hW5Gdk9TqTrUwN-a7egUmpxxI5s')  # remember to remove this before pushing!!
+bot.run('')  # -.-
